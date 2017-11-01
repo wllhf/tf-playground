@@ -25,16 +25,16 @@ class fully_connected(object):
 
         # placeholders
         with tf.name_scope('placeholders'):
-            self._input = tf.placeholder(tf.float32, shape=[None, layer_dims[0]], name='input_layer')
+            self._input = [tf.placeholder(tf.float32, shape=[None, layer_dims[0]], name='input_layer')]
             self._target = tf.placeholder(tf.float32, shape=[None, layer_dims[-1]], name='target')
 
         # inference
         with tf.name_scope('core_network'):
-            x = self._input
             for i in range(len(layer_dims)-2):
-                x = fully_connected_layer(x, layer_dims[i], layer_dims[i+1], 'hidden_layer_'+str(i))
+                self._input.append(
+                    fully_connected_layer(self._input[-1], layer_dims[i], layer_dims[i+1], 'hidden_layer_'+str(i)))
 
-            self._prediction = fully_connected_layer(x, layer_dims[-2], layer_dims[-1],
+            self._prediction = fully_connected_layer(self._input[-1], layer_dims[-2], layer_dims[-1],
                                                      'output_layer', act=tf.identity)
 
         # loss
@@ -78,4 +78,4 @@ class fully_connected(object):
 
     @property
     def io_placeholder(self):
-        return (self._input, self._target)
+        return (self._input[0], self._target)
