@@ -50,7 +50,6 @@ class cnn(object):
                                           shape=[None, NCLASSES],
                                           name='target')
 
-        print(self._input)
         # inference
         with tf.name_scope('core_network'):
             with tf.name_scope('1st_layer'):
