@@ -4,7 +4,7 @@ import tensorflow as tf
 from util import mkrundir, load_mnist
 from ae import ae
 
-EPOCHS = 10
+EPOCHS = 60
 MINI_BATCH_SIZE = 1000
 LOG_DIR = "./log"
 DATA_DIR = "~/data/mnist"
@@ -13,6 +13,7 @@ DATA_DIR = "~/data/mnist"
 def main():
     run_dir = mkrundir(LOG_DIR)
     trn, tst = load_mnist(DATA_DIR)
+    print(trn[0].max(), trn[0].min())
 
     samples, labels = trn
     nsamples, dim_in = samples.shape[0], samples.shape[1]
@@ -20,7 +21,7 @@ def main():
     iterations = ceil(nsamples / MINI_BATCH_SIZE)
 
     # graph
-    model = ae([dim_in, 500, 10])
+    model = ae(dim_in, 2000)
     (x,) = model.io_placeholder
 
     # start session
@@ -37,13 +38,13 @@ def main():
             _, summary = sess.run([model.train, model.summary], feed_dict=feed_dict)
 
         if epoch % 1 == 0:
-            _, summary = sess.run([model.evaluation, model.summary], feed_dict=feed_dict)
+            _, summary = sess.run([model.loss, model.summary], feed_dict=feed_dict)
             file_writer.add_summary(summary, epoch)
 
     # testing
     samples, labels = tst
     samples, labels = samples[:MINI_BATCH_SIZE], labels[:MINI_BATCH_SIZE]
-    print(model.evaluation.eval(feed_dict={x: samples.astype('float32')}))
+    print(model.loss.eval(feed_dict={x: samples.astype('float32')}))
 
 
 if __name__ == '__main__':
