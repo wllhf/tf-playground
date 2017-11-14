@@ -16,11 +16,21 @@ def mkrundir(log_dir='./log'):
     return run_dir
 
 
-def load_mnist(path, flatten=True, standardize=True):
+def shuffle_data(x, y):
+    indices = np.array(range(y.shape[0]))
+    np.random.shuffle(indices)
+    return x[indices], y[indices]
+
+
+def load_mnist(path, flatten=True, standardize=True, shuffle=True):
     # load data
     mnist_obj = mnist(path)
     trn = mnist_obj.train(flatten)
     tst = mnist_obj.test(flatten)
+
+    if shuffle:
+        trn = shuffle_data(trn[0], trn[1])
+        tst = shuffle_data(tst[0], tst[1])
 
     # adjust data
     samples, labels = trn
