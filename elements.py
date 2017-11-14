@@ -11,8 +11,8 @@ def bias_variable(shape):
     return tf.Variable(initial, name='bias_variable')
 
 
-def fc_layer(input_tensor, dim_in, dim_out, layer_name, act=tf.nn.relu):
-    with tf.name_scope(layer_name):
+def fc_layer(input_tensor, dim_in, dim_out, name='fc_layer', act=tf.nn.relu):
+    with tf.name_scope(name):
         W = weight_variable([dim_in, dim_out])
         b = bias_variable([dim_out])
         return act(tf.matmul(input_tensor, W) + b)
