@@ -6,6 +6,7 @@ from ae import ae_classifier
 
 EPOCHS = 60
 MINI_BATCH_SIZE = 1000
+VAL_SIZE = 3000
 TEST_SIZE = 3000
 LOG_DIR = "./log"
 DATA_DIR = "~/data/mnist"
@@ -21,7 +22,7 @@ def main():
     iterations = ceil(nsamples / MINI_BATCH_SIZE)
 
     # graph
-    model = ae_classifier(dim_in, 2000, dim_out)
+    model = ae_classifier(dim_in, 1000, dim_out)
     (x, y_target) = model.io_placeholder
 
     # start session
@@ -54,13 +55,14 @@ def main():
             _, summary = sess.run([model.fine_tune, model.summary], feed_dict=feed_dict)
 
         if epoch % 1 == 0:
+            feed_dict = {x: tst[0][:TEST_SIZE].astype('float32'), y_target: tst[1][:TEST_SIZE]}
             _, summary = sess.run([model.evaluation, model.summary], feed_dict=feed_dict)
             file_writer.add_summary(summary, epoch)
 
     # testing
-    samples, labels = tst
-    samples, labels = samples[:TEST_SIZE], labels[:TEST_SIZE]
-    print(model.evaluation.eval(feed_dict={x: samples.astype('float32'), y_target: labels}))
+    feed_dict = {x: tst[0][VAL_SIZE:VAL_SIZE+TEST_SIZE].astype('float32'),
+                 y_target: tst[1][VAL_SIZE:VAL_SIZE+TEST_SIZE]}
+    print(model.evaluation.eval(feed_dict=feed_dict))
 
 
 if __name__ == '__main__':
