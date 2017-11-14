@@ -1,41 +1,33 @@
 import tensorflow as tf
 
-
-def weight_variable(shape):
-    initial = tf.truncated_normal(shape, stddev=0.1)
-    return tf.Variable(initial, name='weight_variable')
-
-
-def bias_variable(shape):
-    initial = tf.constant(0.1, shape=shape)
-    return tf.Variable(initial, name='bias_variable')
-
-
-def fully_connected_layer(input_tensor, dim_in, dim_out, layer_name, act=tf.nn.relu):
-    with tf.name_scope(layer_name):
-        W = weight_variable([dim_in, dim_out])
-        b = bias_variable([dim_out])
-        return act(tf.matmul(input_tensor, W) + b)
+from elements import fc_layer
 
 
 class fully_connected(object):
     """ """
 
-    def __init__(self, layer_dims):
+    def __init__(self, dim_in, dim_hidden, dim_out):
 
         # placeholders
         with tf.name_scope('placeholders'):
-            self._input = [tf.placeholder(tf.float32, shape=[None, layer_dims[0]], name='input_layer')]
-            self._target = tf.placeholder(tf.float32, shape=[None, layer_dims[-1]], name='target')
+            self._input = [tf.placeholder(tf.float32, shape=[None, dim_in], name='input_layer')]
+            self._target = tf.placeholder(tf.float32, shape=[None, dim_out], name='target')
 
         # inference
         with tf.name_scope('core_network'):
-            for i in range(len(layer_dims)-2):
-                self._input.append(
-                    fully_connected_layer(self._input[-1], layer_dims[i], layer_dims[i+1], 'hidden_layer_'+str(i)))
+            if dim_hidden:
+                self._input.append(fc_layer(self._input[-1], dim_in, dim_hidden[0], 'hidden_layer_0'))
 
-            self._prediction = fully_connected_layer(self._input[-1], layer_dims[-2], layer_dims[-1],
-                                                     'output_layer', act=tf.identity)
+                for i in range(len(dim_hidden)-1):
+                    self._input.append(
+                        fc_layer(self._input[-1], dim_hidden[i], dim_hidden[i+1], 'hidden_layer_'+str(i)))
+
+                self._prediction = fc_layer(self._input[-1], dim_hidden[-1], dim_out,
+                                            name='output_layer', act=tf.identity)
+
+            else:
+                self._prediction = fc_layer(self._input[-1], dim_in, dim_out,
+                                            name='output_layer', act=tf.identity)
 
         # loss
         with tf.name_scope('loss'):
