@@ -1,8 +1,9 @@
 from math import ceil
 import tensorflow as tf
 
-from util import mkrundir, load_mnist
-from ae import ae_classifier
+from util.util import mkrundir
+from util.data import load_mnist
+from ae.sae import sae_classifier
 
 EPOCHS = 60
 MINI_BATCH_SIZE = 1000
@@ -22,8 +23,10 @@ def main():
     iterations = ceil(nsamples / MINI_BATCH_SIZE)
 
     # graph
-    model = ae_classifier(dim_in, 1000, dim_out)
-    (x, y_target) = model.io_placeholder
+    x = tf.placeholder(tf.float32, shape=[None, dim_in], name='input_layer')
+    y = tf.placeholder(tf.float32, shape=[None, dim_out], name='target')
+    model = sae_classifier(x, y, [500, 200], 100)
+    (x, y_target, keep_prob) = model.io_placeholder
 
     # start session
     sess = tf.InteractiveSession()
@@ -51,17 +54,17 @@ def main():
 
         for i in range(iterations):
             s, e = i * MINI_BATCH_SIZE, (i + 1) * MINI_BATCH_SIZE
-            feed_dict = {x: samples[s:e, :].astype('float32'), y_target: labels[s:e, :]}
+            feed_dict = {x: samples[s:e, :].astype('float32'), y_target: labels[s:e, :], keep_prob: 0.5}
             _, summary = sess.run([model.fine_tune, model.summary], feed_dict=feed_dict)
 
         if epoch % 1 == 0:
-            feed_dict = {x: tst[0][:TEST_SIZE].astype('float32'), y_target: tst[1][:TEST_SIZE]}
+            feed_dict = {x: tst[0][:TEST_SIZE].astype('float32'), y_target: tst[1][:TEST_SIZE], keep_prob: 1.0}
             _, summary = sess.run([model.evaluation, model.summary], feed_dict=feed_dict)
             file_writer.add_summary(summary, epoch)
 
     # testing
     feed_dict = {x: tst[0][VAL_SIZE:VAL_SIZE+TEST_SIZE].astype('float32'),
-                 y_target: tst[1][VAL_SIZE:VAL_SIZE+TEST_SIZE]}
+                 y_target: tst[1][VAL_SIZE:VAL_SIZE+TEST_SIZE], keep_prob: 1.0}
     print(model.evaluation.eval(feed_dict=feed_dict))
 
 

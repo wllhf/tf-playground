@@ -1,11 +1,15 @@
 from math import ceil
 import tensorflow as tf
 
-from util import mkrundir, load_mnist
-from ae import ae
+from util.util import mkrundir
+from util.data import load_mnist
+
+from shallow.fc import fully_connected
 
 EPOCHS = 60
 MINI_BATCH_SIZE = 1000
+VAL_SIZE = 3000
+TEST_SIZE = 3000
 LOG_DIR = "./log"
 DATA_DIR = "~/data/mnist"
 
@@ -13,7 +17,6 @@ DATA_DIR = "~/data/mnist"
 def main():
     run_dir = mkrundir(LOG_DIR)
     trn, tst = load_mnist(DATA_DIR)
-    print(trn[0].max(), trn[0].min())
 
     samples, labels = trn
     nsamples, dim_in = samples.shape[0], samples.shape[1]
@@ -21,8 +24,11 @@ def main():
     iterations = ceil(nsamples / MINI_BATCH_SIZE)
 
     # graph
-    model = ae(dim_in, 2000)
-    (x,) = model.io_placeholder
+    x = tf.placeholder(tf.float32, shape=[None, dim_in], name='input_layer')
+    y = tf.placeholder(tf.float32, shape=[None, dim_out], name='target')
+
+    model = fully_connected(x, y, [2000, 1000, 100])
+    (x, y_target, keep_prob) = model.io_placeholder
 
     # start session
     sess = tf.InteractiveSession()
@@ -34,17 +40,18 @@ def main():
 
         for i in range(iterations):
             s, e = i * MINI_BATCH_SIZE, (i + 1) * MINI_BATCH_SIZE
-            feed_dict = {x: samples[s:e, :].astype('float32')}
+            feed_dict = {x: samples[s:e, :].astype('float32'), y_target: labels[s:e, :], keep_prob: 0.5}
             _, summary = sess.run([model.train, model.summary], feed_dict=feed_dict)
 
         if epoch % 1 == 0:
-            _, summary = sess.run([model.loss, model.summary], feed_dict=feed_dict)
+            feed_dict = {x: tst[0][:TEST_SIZE].astype('float32'), y_target: tst[1][:TEST_SIZE], keep_prob: 1.0}
+            _, summary = sess.run([model.evaluation, model.summary], feed_dict=feed_dict)
             file_writer.add_summary(summary, epoch)
 
     # testing
-    samples, labels = tst
-    samples, labels = samples[:MINI_BATCH_SIZE], labels[:MINI_BATCH_SIZE]
-    print(model.loss.eval(feed_dict={x: samples.astype('float32')}))
+    feed_dict = {x: tst[0][VAL_SIZE:VAL_SIZE+TEST_SIZE].astype('float32'),
+                 y_target: tst[1][VAL_SIZE:VAL_SIZE+TEST_SIZE], keep_prob: 1.0}
+    print(model.evaluation.eval(feed_dict=feed_dict))
 
 
 if __name__ == '__main__':

@@ -1,6 +1,6 @@
 import tensorflow as tf
 
-from elements import fc_layer
+from util.elements import fc_layer
 
 
 class linear(object):

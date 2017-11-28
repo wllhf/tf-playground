@@ -1,21 +1,21 @@
 import tensorflow as tf
 
-from elements import fc_layer
+from util.elements import fc_layer
 
 
 class ae(object):
     """ """
 
-    def __init__(self, dim_in, dim_latent):
+    def __init__(self, x, dim_latent):
 
-        # placeholders
-        with tf.name_scope('placeholders'):
-            self._input = tf.placeholder(tf.float32, shape=[None, dim_in], name='input_layer')
+        # placeholder
+        self._input = x
 
         # autoencoder
-        with tf.name_scope('autoencoder'):
-            self._latent_space = fc_layer(self._input, dim_in, dim_latent, 'encode_layer')
-            self._decoded = fc_layer(self._latent_space, dim_latent, dim_in, 'decode_layer')
+        with tf.variable_scope('encode_layer'):
+            self._latent_space = fc_layer(self._input, x.get_shape()[1].value, dim_latent)
+        with tf.variable_scope('decode_layer'):
+            self._decoded = fc_layer(self._latent_space, dim_latent, x.get_shape()[1].value)
 
         # loss
         with tf.name_scope('loss_pt'):
@@ -56,19 +56,22 @@ class ae(object):
 class ae_classifier(object):
     """ """
 
-    def __init__(self, dim_in, dim_latent, dim_classifier):
+    def __init__(self, x, y, dim_latent, dim_dropout):
 
-        # placeholders
-        with tf.name_scope('placeholders'):
-            self._target = tf.placeholder(tf.float32, shape=[None, dim_classifier], name='target')
+        self._input = x
+        self._target = y
 
         # autoencoder
-        self._ae = ae(dim_in, dim_latent)
+        self._ae = ae(x, dim_latent)
 
         # classifier
         with tf.name_scope('classifier'):
-            self._prediction = fc_layer(self._ae.latent_space, dim_latent, dim_classifier,
-                                        name='output_layer', act=tf.identity)
+            with tf.variable_scope('fc_layer'):
+                self._keep_prob = tf.placeholder(tf.float32)
+                fc = fc_layer(self._ae.latent_space, dim_latent, dim_dropout, dropout=self._keep_prob)
+
+            with tf.variable_scope('output_layer'):
+                self._prediction = fc_layer(fc, dim_dropout, self._target.get_shape()[1].value, act=tf.identity)
 
         # loss
         with tf.name_scope('loss_ft'):
@@ -79,7 +82,8 @@ class ae_classifier(object):
 
         # train
         with tf.name_scope('train_op_ft'):
-            self._train = tf.train.GradientDescentOptimizer(0.5).minimize(self._loss)
+            # self._train = tf.train.GradientDescentOptimizer(0.5).minimize(self._loss)
+            self._train = tf.train.AdamOptimizer(1e-4).minimize(cross_entropy)
 
         # evaluation
         with tf.name_scope('accuracy'):
@@ -127,4 +131,4 @@ class ae_classifier(object):
 
     @property
     def io_placeholder(self):
-        return (self._ae.io_placeholder[0], self._target)
+        return (self._ae.io_placeholder[0], self._target, self._keep_prob)

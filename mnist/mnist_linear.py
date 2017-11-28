@@ -1,8 +1,9 @@
 from math import ceil
 import tensorflow as tf
 
-from util import mkrundir, load_mnist
-from linear import linear
+from util.util import mkrundir
+from util.data import load_mnist
+from shallow.linear import linear
 
 EPOCHS = 60
 MINI_BATCH_SIZE = 1000

@@ -2,12 +2,10 @@ from math import ceil
 import tensorflow as tf
 
 from util import mkrundir, load_mnist
-from fc import fully_connected
+from ae import ae
 
 EPOCHS = 60
 MINI_BATCH_SIZE = 1000
-VAL_SIZE = 3000
-TEST_SIZE = 3000
 LOG_DIR = "./log"
 DATA_DIR = "~/data/mnist"
 
@@ -22,8 +20,8 @@ def main():
     iterations = ceil(nsamples / MINI_BATCH_SIZE)
 
     # graph
-    model = fully_connected(dim_in, [1000], dim_out)
-    (x, y_target) = model.io_placeholder
+    x = tf.placeholder(tf.float32, shape=[None, dim_in], name='input_layer')
+    model = ae(x, 2000)
 
     # start session
     sess = tf.InteractiveSession()
@@ -35,18 +33,17 @@ def main():
 
         for i in range(iterations):
             s, e = i * MINI_BATCH_SIZE, (i + 1) * MINI_BATCH_SIZE
-            feed_dict = {x: samples[s:e, :].astype('float32'), y_target: labels[s:e, :]}
+            feed_dict = {x: samples[s:e, :].astype('float32')}
             _, summary = sess.run([model.train, model.summary], feed_dict=feed_dict)
 
         if epoch % 1 == 0:
-            feed_dict = {x: tst[0][:TEST_SIZE].astype('float32'), y_target: tst[1][:TEST_SIZE]}
-            _, summary = sess.run([model.evaluation, model.summary], feed_dict=feed_dict)
+            _, summary = sess.run([model.loss, model.summary], feed_dict=feed_dict)
             file_writer.add_summary(summary, epoch)
 
     # testing
-    feed_dict = {x: tst[0][VAL_SIZE:VAL_SIZE+TEST_SIZE].astype('float32'),
-                 y_target: tst[1][VAL_SIZE:VAL_SIZE+TEST_SIZE]}
-    print(model.evaluation.eval(feed_dict=feed_dict))
+    samples, labels = tst
+    samples, labels = samples[:MINI_BATCH_SIZE], labels[:MINI_BATCH_SIZE]
+    print(model.loss.eval(feed_dict={x: samples.astype('float32')}))
 
 
 if __name__ == '__main__':

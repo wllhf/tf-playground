@@ -1,13 +1,18 @@
 from math import ceil
 import tensorflow as tf
 
-from util import mkrundir, load_mnist
-from cnn import cnn
+from util.util import mkrundir
+from util.data import load_mnist
+from shallow.cnn import cnn
 
 EPOCHS = 10
 MINI_BATCH_SIZE = 1000
 LOG_DIR = "./log"
 DATA_DIR = "~/data/mnist"
+
+PATCH_SIZE = [28, 28]
+NCLASSES = 10
+NCHANNELS = 1
 
 
 def main():
@@ -19,7 +24,10 @@ def main():
     iterations = ceil(nsamples / MINI_BATCH_SIZE)
 
     # graph
-    model = cnn()
+    x = tf.placeholder(tf.float32, shape=[None, PATCH_SIZE[0], PATCH_SIZE[1], NCHANNELS], name='input_layer')
+    y = tf.placeholder(tf.float32, shape=[None, NCLASSES], name='target')
+
+    model = cnn(x, y)
     (x, y_target, keep_prob) = model.io_placeholder
 
     # start session

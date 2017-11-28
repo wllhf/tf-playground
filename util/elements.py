@@ -16,7 +16,7 @@ def fc_layer(input_tensor, dim_in, dim_out, act=tf.nn.relu, dropout=None, name='
         W = weight_variable([dim_in, dim_out])
         b = bias_variable([dim_out])
         y = act(tf.matmul(input_tensor, W) + b)
-        return tf.nn.dropout(y, dropout) if dropout else y
+        return tf.nn.dropout(y, dropout) if dropout is not None else y
 
 
 def conv2d_layer(input_tensor, fshape, nchannels, nfilters, act=tf.nn.relu, name='conv2d_layer'):

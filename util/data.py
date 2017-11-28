@@ -1,19 +1,8 @@
-import os
-
 import numpy as np
 
 from img_toolbox import label
 from img_toolbox import adjustment
 from img_toolbox.data.mnist import mnist
-
-
-def mkrundir(log_dir='./log'):
-    run = 0
-    while os.path.exists(os.path.join(log_dir, "run%s" % run)):
-        run += 1
-    run_dir = os.path.join(log_dir, "run%s" % run)
-    os.makedirs(run_dir)
-    return run_dir
 
 
 def shuffle_data(x, y):
