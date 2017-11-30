@@ -1,6 +1,6 @@
 import tensorflow as tf
 
-from util.elements import fc_layer
+from util.elements import fc_layer, fc_decode_layer
 
 
 class ae(object):
@@ -12,10 +12,9 @@ class ae(object):
         self._input = x
 
         # autoencoder
-        with tf.variable_scope('encode_layer'):
+        with tf.variable_scope('ae', reuse=tf.AUTO_REUSE):
             self._latent_space = fc_layer(self._input, x.get_shape()[1].value, dim_latent)
-        with tf.variable_scope('decode_layer'):
-            self._decoded = fc_layer(self._latent_space, dim_latent, x.get_shape()[1].value)
+            self._decoded = fc_decode_layer(self._latent_space)
 
         # loss
         with tf.name_scope('loss_pt'):

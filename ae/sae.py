@@ -1,6 +1,6 @@
 import tensorflow as tf
 
-from util.elements import fc_layer
+from util.elements import fc_layer, fc_decode_layer
 
 
 class sae(object):
@@ -18,37 +18,29 @@ class sae(object):
         self._train = []
 
         # generate autoencoders
-        with tf.name_scope('stacked_autoencoder'):
-
+        with tf.name_scope('sae') and tf.variable_scope('sae'):
             for i in range(self._n_aes):
                 self._aes.append([x])
-
-                with tf.name_scope('autoencoder_'+str(i)):
-
+                with tf.name_scope('ae_'+str(i)):
                     # encoding layers
                     for l in range(self._n_aes-i):
-                        with tf.variable_scope('encode_layer_'+str(l), reuse=(i > 0)):
-                            self._aes[i].append(
-                                fc_layer(self._aes[i][-1], dimensions[l], dimensions[l+1]))
-
+                        with tf.variable_scope('ae_layer_'+str(l), reuse=tf.AUTO_REUSE):
+                            self._aes[i].append(fc_layer(self._aes[i][-1], dimensions[l], dimensions[l+1]))
                     # decoding layers
                     for l in reversed(range(self._n_aes-i)):
-                        with tf.variable_scope('decode_layer_'+str(l), reuse=(i > 0)):
-                            self._aes[i].append(
-                                fc_layer(self._aes[i][-1], dimensions[l+1], dimensions[l]))
+                        with tf.variable_scope('ae_layer_'+str(l), reuse=tf.AUTO_REUSE):
+                            self._aes[i].append(fc_decode_layer(self._aes[i][-1]))
 
-        # pre training
-        with tf.name_scope('pre_training'):
-            with tf.name_scope('loss'):
+            # pre training
+            with tf.name_scope('pre_training'):
+                with tf.name_scope('loss'):
+                    for i in range(self._n_aes):
+                        self._loss.append(tf.reduce_mean(tf.square(self._aes[i][-1] - self._aes[i][0])))
+                        tf.summary.scalar('loss_'+str(i), self._loss[-1])
 
-                for i in range(self._n_aes):
-                    self._loss.append(tf.reduce_mean(tf.square(self._aes[i][-1] - self._aes[i][0])))
-                    tf.summary.scalar('loss_'+str(i), self._loss[-1])
-
-            with tf.name_scope('training_ops'):
-
-                for i in range(self._n_aes):
-                    self._train.append(tf.train.GradientDescentOptimizer(0.5).minimize(self._loss[-1]))
+                with tf.name_scope('training_ops'):
+                    for i in range(self._n_aes):
+                        self._train.append(tf.train.GradientDescentOptimizer(0.5).minimize(self._loss[-1]))
 
         self._merged = tf.summary.merge_all()
 
@@ -84,36 +76,36 @@ class sae_classifier(object):
 
         self._input = x
         self._target = y
+        self._keep_prob = tf.placeholder(tf.float32, name='keep_prob')
 
         # autoencoder
         self._ae = sae(self._input, ae_dimensions)
 
         # classifier
-        with tf.name_scope('classifier'):
-            with tf.variable_scope('fc_layer'):
-                self._keep_prob = tf.placeholder(tf.float32)
+        with tf.name_scope('classifier') and tf.variable_scope('classifier'):
+            with tf.variable_scope('dropout'):
                 fc = fc_layer(self._ae.latent_space, ae_dimensions[-1], dim_dropout, dropout=self._keep_prob)
-
-            with tf.variable_scope('output_layer'):
+            with tf.variable_scope('output'):
                 self._prediction = fc_layer(fc, dim_dropout, self._target.get_shape()[1].value, act=tf.identity)
 
-        # loss
-        with tf.name_scope('loss_ft'):
-            with tf.name_scope('cross_entropy'):
-                cross_entropy = tf.nn.softmax_cross_entropy_with_logits(logits=self._prediction, labels=self._target)
-            self._loss = tf.reduce_mean(cross_entropy)
-            sum_loss_ft = tf.summary.scalar('loss_ft', self._loss)
+            # loss
+            with tf.name_scope('loss_ft'):
+                with tf.name_scope('cross_entropy'):
+                    cross_entropy = tf.nn.softmax_cross_entropy_with_logits(logits=self._prediction,
+                                                                            labels=self._target)
+                self._loss = tf.reduce_mean(cross_entropy)
+                sum_loss_ft = tf.summary.scalar('loss_ft', self._loss)
 
-        # train
-        with tf.name_scope('train_op_ft'):
-            # self._train = tf.train.GradientDescentOptimizer(0.5).minimize(self._loss)
-            self._train = tf.train.AdamOptimizer(1e-4).minimize(cross_entropy)
+            # train
+            with tf.name_scope('train_op_ft'):
+                # self._train = tf.train.GradientDescentOptimizer(0.5).minimize(self._loss)
+                self._train = tf.train.AdamOptimizer(1e-4).minimize(cross_entropy)
 
-        # evaluation
-        with tf.name_scope('accuracy'):
-            correct_prediction = tf.equal(tf.argmax(self._target, 1), tf.argmax(self._prediction, 1))
-            self._accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
-            sum_acc_ft = tf.summary.scalar('accuracy', self._accuracy)
+            # evaluation
+            with tf.name_scope('accuracy'):
+                correct_prediction = tf.equal(tf.argmax(self._target, 1), tf.argmax(self._prediction, 1))
+                self._accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
+                sum_acc_ft = tf.summary.scalar('accuracy', self._accuracy)
 
         self._merged = tf.summary.merge([sum_loss_ft, sum_acc_ft])
 
