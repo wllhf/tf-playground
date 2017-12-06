@@ -35,3 +35,25 @@ def load_mnist(path, flatten=True, standardize=True, shuffle=True):
     tst = (samples, labels)
 
     return trn, tst
+
+
+class gaussian(object):
+    """ Gaussian distribution. """
+
+    def __init__(self, mu, sigma):
+        self._mu = mu
+        self._sigma = sigma
+
+    def sample(self, n):
+        return np.random.normal(self._mu, self._sigma, n)
+
+
+class noisy_uniform(object):
+    """ Noisy uniform distribution. """
+
+    def __init__(self, lower_bound, upper_bound):
+        self._l = lower_bound
+        self._u = upper_bound
+
+    def sample(self, n):
+        return np.linspace(self._l, self._u, n) + np.random.random(n) * 0.01
