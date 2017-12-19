@@ -1,3 +1,5 @@
+""" http://yann.lecun.com/exdb/publis/pdf/lecun-01a.pdf """
+
 from math import ceil
 
 import tensorflow as tf
