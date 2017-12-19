@@ -12,6 +12,8 @@ class cnn(object):
     2. Convolutional layer + max pooling,
     3. Fully connected layer \w dropout
     4. Fully connected output layer
+
+    MNIST: > 95 %
     """
 
     def __init__(self, x, y, filter_size=[7, 7], dim_1conv=32, dim_2conv=64, dim_ful=1024):
