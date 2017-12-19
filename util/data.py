@@ -1,8 +1,11 @@
+import pickle
+
 import numpy as np
 
 from img_toolbox import label
 from img_toolbox import adjustment
 from img_toolbox.data.mnist import mnist
+from img_toolbox.data.cifar import cifar10
 
 
 def shuffle_data(x, y):
@@ -32,6 +35,30 @@ def load_mnist(path, flatten=True, standardize=True, shuffle=True):
     samples = samples if not standardize else adjustment.per_image_standardization(samples)
     samples = samples if flatten else np.expand_dims(samples, axis=3)
     labels = label.one_hot_repr(labels)
+    tst = (samples, labels)
+
+    return trn, tst
+
+
+def load_cifar10(path, flatten=True, standardize=True, shuffle=True, one_hot=True):
+    # load data
+    cifar_obj = cifar10(path)
+    trn = cifar_obj.train(flatten=flatten, integral=True)
+    tst = cifar_obj.test(flatten=flatten, integral=True)
+
+    if shuffle:
+        trn = shuffle_data(trn[0], trn[1])
+        tst = shuffle_data(tst[0], tst[1])
+
+    # adjust data
+    samples, labels = trn
+    samples = samples if not standardize else adjustment.per_image_standardization(samples)
+    labels = label.one_hot_repr(labels) if one_hot else labels
+    trn = (samples, labels)
+
+    samples, labels = tst
+    samples = samples if not standardize else adjustment.per_image_standardization(samples)
+    labels = label.one_hot_repr(labels) if one_hot else labels
     tst = (samples, labels)
 
     return trn, tst
