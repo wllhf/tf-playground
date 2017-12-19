@@ -28,11 +28,11 @@ def fc_decode_layer(input_tensor, act=tf.nn.relu, dropout=None, name='fc_decode_
         return tf.nn.dropout(y, dropout) if dropout is not None else y
 
 
-def conv2d_layer(input_tensor, fshape, nchannels, nfilters, act=tf.nn.relu, name='conv2d_layer'):
+def conv2d_layer(input_tensor, fshape, nchannels, nfilters, act=tf.nn.relu, padding='SAME', name='conv2d_layer'):
     with tf.name_scope(name):
         W = weight_variable([fshape[0], fshape[1], nchannels, nfilters])
         b = bias_variable([nfilters])
-        return act(tf.nn.conv2d(input_tensor, W, strides=[1, 1, 1, 1], padding='SAME') + b)
+        return act(tf.nn.conv2d(input_tensor, W, strides=[1, 1, 1, 1], padding=padding) + b)
 
 
 def max_pool_layer(input_tensor, ps=2, ss=2, name='max_pool_layer'):
