@@ -6,9 +6,14 @@ from util.elements import conv2d_layer
 
 
 class allconv(object):
+    """
+    All convolutional network. Training process is simplified using AdamOptimizer.
+
+    MNIST ~97%
+    CIFAR10 ~83% (200 epochs, original paper ~92% at 350 epochs)
+    """
 
     def __init__(self, x, y):
-
         nch = x.get_shape()[3].value
         ncl = y.get_shape()[1].value
 
@@ -53,7 +58,6 @@ class allconv(object):
 
         # train
         with tf.name_scope('train_op'):
-            # self._train = tf.train.GradientDescentOptimizer(0.5).minimize(self._loss)
             self._train = tf.train.AdamOptimizer(1e-4).minimize(cross_entropy)
 
         # evaluation
@@ -109,7 +113,7 @@ def train_and_test(trn, tst, mbatch_size=50, epochs=20, run_dir='./log/'):
             _, summary = sess.run([model.train, model.summary], feed_dict=feed_dict)
 
         if epoch % 1 == 0:
-            feed_dict = {x: trn[0][:mbatch_size, :].astype('float32'), y: trn[1][:mbatch_size, :], kp_in: 0.2, kp: 0.5}
+            feed_dict = {x: tst[0][:mbatch_size, :].astype('float32'), y: tst[1][:mbatch_size, :], kp_in: 1.0, kp: 1.0}
             _, summary = sess.run([model.evaluation, model.summary], feed_dict=feed_dict)
             file_writer.add_summary(summary, epoch)
 
@@ -120,6 +124,7 @@ def train_and_test(trn, tst, mbatch_size=50, epochs=20, run_dir='./log/'):
         feed_dict = {x: tst[0][s:e, :].astype('float32'), y: tst[1][s:e, :], kp_in: 1.0, kp: 1.0}
         results.append(model.evaluation.eval(feed_dict=feed_dict))
 
+    print(results)
     print("Result: " + str(sum(results)/len(results)))
 
 
@@ -129,15 +134,14 @@ if __name__ == '__main__':
     from util.data import load_cifar10
 
     LOG_DIR = "./log"
-    log_dir = mkrundir(LOG_DIR)
 
     sess = tf.InteractiveSession()
 
-    # print("Train and test on MNIST:")
-    # DATA_DIR = "~/data/mnist"
-    # trn, tst = load_mnist(DATA_DIR, flatten=False)
-    # print(trn[0].shape, trn[1].shape)
-    # train_and_test(trn, tst, epochs=20, run_dir=log_dir)
+    print("Train and test on MNIST:")
+    DATA_DIR = "~/data/mnist"
+    log_dir = mkrundir(LOG_DIR)
+    trn, tst = load_mnist(DATA_DIR)
+    train_and_test(trn, tst, epochs=20, run_dir=log_dir)
 
     sess.close()
     tf.reset_default_graph()
@@ -145,8 +149,8 @@ if __name__ == '__main__':
 
     print("Train and test on CIFAR10:")
     DATA_DIR = "~/data/cifar10_py"
+    log_dir = mkrundir(LOG_DIR)
     trn, tst = load_cifar10(DATA_DIR, flatten=False)
-    print(trn[0].shape, trn[1].shape)
-    train_and_test(trn, tst, epochs=5, run_dir=log_dir)
+    train_and_test(trn, tst, epochs=200, run_dir=log_dir)
 
     sess.close()
