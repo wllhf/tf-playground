@@ -8,7 +8,12 @@ from util.elements import conv2d_layer, max_pool_layer, fc_layer
 
 
 class lenet(object):
-    """
+    """ LeNet.
+    Year         : 1998
+    Parameters   : ~ 60k (original version)
+    Contribution : Its the Net.
+
+    Notes:
     Simplified version of LeNet-5. Cross entropy on logits instead
     of RBFs. All feature maps between S2 and C3 connected. First
     convolution is padded to use network on unadjusted MNIST data.

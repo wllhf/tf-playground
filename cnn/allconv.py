@@ -7,10 +7,10 @@ from util.elements import conv2d_layer
 
 class allconv(object):
     """
-    All convolutional network. Training process is simplified using AdamOptimizer.
+    2014: All convolutional network. Training process is simplified using AdamOptimizer.
 
     MNIST ~97%
-    CIFAR10 ~83% (200 epochs, original paper ~92% at 350 epochs)
+    CIFAR10 ~83% (200 epochs, original paper ~91% at 350 epochs)
     """
 
     def __init__(self, x, y):
@@ -23,7 +23,7 @@ class allconv(object):
         self._keep_prob = tf.placeholder(tf.float32)
         self._keep_prob_in = tf.placeholder(tf.float32)
 
-        # inference
+        # network
         with tf.name_scope('core_network'):
             with tf.variable_scope('dropout_in'):
                 x = tf.nn.dropout(x, self._keep_prob_in)
