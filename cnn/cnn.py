@@ -1,7 +1,7 @@
 import tensorflow as tf
 
 
-from util.elements import conv2d_layer, max_pool_layer, fc_layer
+from ..util.elements import conv2d_layer, max_pool_layer, fc_layer
 
 
 class cnn(object):
@@ -88,3 +88,59 @@ class cnn(object):
     @property
     def io_placeholder(self):
         return (self._input, self._target, self._keep_prob)
+
+
+def train_and_test(trn, tst, epochs=50, mini_batch_size=100, log_dir="./log"):
+    from math import ceil
+    from ..util.util import mkrundir
+
+    tf.reset_default_graph()
+    run_dir = mkrundir(log_dir)
+
+    samples, labels = trn
+    patch_size = samples.shape[1:]
+    nchannels = patch_size[2] if len(patch_size) > 2 else 1
+    nclasses = labels.shape[1]
+    nsamples = samples.shape[0]
+    iterations = ceil(nsamples / mini_batch_size)
+
+    # graph
+    x = tf.placeholder(tf.float32, shape=[None, patch_size[0], patch_size[1], nchannels], name='input_layer')
+    y = tf.placeholder(tf.float32, shape=[None, nclasses], name='target')
+
+    model = cnn(x, y)
+    (x, y_target, keep_prob) = model.io_placeholder
+
+    # start session
+    sess = tf.InteractiveSession()
+    sess.run(tf.global_variables_initializer())
+    file_writer = tf.summary.FileWriter(run_dir, sess.graph)
+
+    # training
+    for epoch in range(epochs):
+
+        for i in range(iterations):
+            s, e = i * mini_batch_size, (i + 1) * mini_batch_size
+            feed_dict = {x: samples[s:e, :].astype('float32'), y_target: labels[s:e, :], keep_prob: 0.5}
+            _, summary = sess.run([model.train, model.summary], feed_dict=feed_dict)
+
+        if epoch % 1 == 0:
+            feed_dict = {x: samples[:mini_batch_size, :].astype('float32'),
+                         y_target: labels[:mini_batch_size, :], keep_prob: 1.0}
+            _, summary = sess.run([model.evaluation, model.summary], feed_dict=feed_dict)
+            file_writer.add_summary(summary, epoch)
+
+    # testing
+    samples, labels = tst
+    nsamples = samples.shape[0]
+    iterations = ceil(nsamples / mini_batch_size)
+
+    # samples, labels = samples[:MINI_BATCH_SIZE], labels[:MINI_BATCH_SIZE]
+    results = []
+    for i in range(iterations):
+        s, e = i * mini_batch_size, (i + 1) * mini_batch_size
+        feed_dict = {x: samples[s:e, :].astype('float32'), y_target: labels[s:e, :], keep_prob: 1.0}
+        results.append(model.evaluation.eval(feed_dict=feed_dict))
+
+    sess.close()
+    return sum(results)/len(results)
