@@ -90,7 +90,7 @@ class cnn(object):
         return (self._input, self._target, self._keep_prob)
 
 
-def train_and_test(trn, tst, epochs=50, mini_batch_size=100, log_dir="./log"):
+def train_and_test(trn, tst, epochs=50, mbatch_size=100, log_dir="./log"):
     from math import ceil
     from ..util.util import mkrundir
 
@@ -102,7 +102,7 @@ def train_and_test(trn, tst, epochs=50, mini_batch_size=100, log_dir="./log"):
     nchannels = patch_size[2] if len(patch_size) > 2 else 1
     nclasses = labels.shape[1]
     nsamples = samples.shape[0]
-    iterations = ceil(nsamples / mini_batch_size)
+    iterations = ceil(nsamples / mbatch_size)
 
     # graph
     x = tf.placeholder(tf.float32, shape=[None, patch_size[0], patch_size[1], nchannels], name='input_layer')
@@ -120,27 +120,44 @@ def train_and_test(trn, tst, epochs=50, mini_batch_size=100, log_dir="./log"):
     for epoch in range(epochs):
 
         for i in range(iterations):
-            s, e = i * mini_batch_size, (i + 1) * mini_batch_size
+            s, e = i * mbatch_size, (i + 1) * mbatch_size
             feed_dict = {x: samples[s:e, :].astype('float32'), y_target: labels[s:e, :], keep_prob: 0.5}
             _, summary = sess.run([model.train, model.summary], feed_dict=feed_dict)
 
         if epoch % 1 == 0:
-            feed_dict = {x: samples[:mini_batch_size, :].astype('float32'),
-                         y_target: labels[:mini_batch_size, :], keep_prob: 1.0}
+            feed_dict = {x: samples[:mbatch_size, :].astype('float32'),
+                         y_target: labels[:mbatch_size, :], keep_prob: 1.0}
             _, summary = sess.run([model.evaluation, model.summary], feed_dict=feed_dict)
             file_writer.add_summary(summary, epoch)
 
     # testing
     samples, labels = tst
     nsamples = samples.shape[0]
-    iterations = ceil(nsamples / mini_batch_size)
+    iterations = ceil(nsamples / mbatch_size)
 
-    # samples, labels = samples[:MINI_BATCH_SIZE], labels[:MINI_BATCH_SIZE]
+    # samples, labels = samples[:MBATCH_SIZE], labels[:MBATCH_SIZE]
     results = []
     for i in range(iterations):
-        s, e = i * mini_batch_size, (i + 1) * mini_batch_size
+        s, e = i * mbatch_size, (i + 1) * mbatch_size
         feed_dict = {x: samples[s:e, :].astype('float32'), y_target: labels[s:e, :], keep_prob: 1.0}
         results.append(model.evaluation.eval(feed_dict=feed_dict))
 
     sess.close()
     return sum(results)/len(results)
+
+
+if __name__ == '__main__':
+    from ..util.data import load_mnist
+    from ..util.data import load_cifar10
+
+    log_dir = "./log"
+
+    print("Train and test on MNIST:")
+    DATA_DIR = "~/data/mnist"
+    trn, tst = load_mnist(DATA_DIR)
+    train_and_test(trn, tst, epochs=20, log_dir=log_dir)
+
+    print("Train and test on CIFAR10:")
+    DATA_DIR = "~/data/cifar10_py"
+    trn, tst = load_cifar10(DATA_DIR, flatten=False)
+    train_and_test(trn, tst, epochs=200, log_dir=log_dir)

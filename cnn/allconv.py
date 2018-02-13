@@ -2,7 +2,7 @@
 
 import tensorflow as tf
 
-from util.elements import conv2d_layer
+from ..util.elements import conv2d_layer
 
 
 class allconv(object):
@@ -93,16 +93,31 @@ class allconv(object):
         return (self._input, self._target, self._keep_prob, self._keep_prob_in)
 
 
-def train_and_test(trn, tst, mbatch_size=50, epochs=20, run_dir='./log/'):
+def train_and_test(trn, tst, mbatch_size=50, epochs=20, log_dir='./log/'):
     from math import ceil
+    from ..util.util import mkrundir
+
+    tf.reset_default_graph()
+    run_dir = mkrundir(log_dir)
+
+    samples, labels = trn
+    patch_size = samples.shape[1:]
+    nchannels = patch_size[2] if len(patch_size) > 2 else 1
+    nclasses = labels.shape[1]
+    nsamples = samples.shape[0]
+    iterations = ceil(nsamples / mbatch_size)
+
     # graph
-    x = tf.placeholder(tf.float32, shape=[None, trn[0].shape[1], trn[0].shape[2], trn[0].shape[3]], name='input_layer')
-    y = tf.placeholder(tf.float32, shape=[None, 10], name='target')
+    x = tf.placeholder(tf.float32, shape=[None, patch_size[0], patch_size[1], nchannels], name='input_layer')
+    y = tf.placeholder(tf.float32, shape=[None, nclasses], name='target')
+
     model = allconv(x, y)
     kp_in, kp = model.io_placeholder[2:]
-    file_writer = tf.summary.FileWriter(run_dir, sess.graph)
+
     # start session
+    sess = tf.InteractiveSession()
     sess.run(tf.global_variables_initializer())
+    file_writer = tf.summary.FileWriter(run_dir, sess.graph)
 
     # training
     for epoch in range(epochs):
@@ -118,39 +133,32 @@ def train_and_test(trn, tst, mbatch_size=50, epochs=20, run_dir='./log/'):
             file_writer.add_summary(summary, epoch)
 
     # testing
+    samples, labels = tst
+    nsamples = samples.shape[0]
+    iterations = ceil(nsamples / mbatch_size)
+
     results = []
-    for i in range(ceil(tst[0].shape[0] / mbatch_size)):
+    for i in range(iterations):
         s, e = i * mbatch_size, (i + 1) * mbatch_size
         feed_dict = {x: tst[0][s:e, :].astype('float32'), y: tst[1][s:e, :], kp_in: 1.0, kp: 1.0}
         results.append(model.evaluation.eval(feed_dict=feed_dict))
 
-    print(results)
-    print("Result: " + str(sum(results)/len(results)))
+    sess.close()
+    return sum(results)/len(results)
 
 
 if __name__ == '__main__':
-    from util.util import mkrundir
-    from util.data import load_mnist
-    from util.data import load_cifar10
+    from ..util.data import load_mnist
+    from ..util.data import load_cifar10
 
-    LOG_DIR = "./log"
-
-    sess = tf.InteractiveSession()
+    log_dir = "./log"
 
     print("Train and test on MNIST:")
     DATA_DIR = "~/data/mnist"
-    log_dir = mkrundir(LOG_DIR)
     trn, tst = load_mnist(DATA_DIR)
-    train_and_test(trn, tst, epochs=20, run_dir=log_dir)
-
-    sess.close()
-    tf.reset_default_graph()
-    sess = tf.InteractiveSession()
+    train_and_test(trn, tst, epochs=20, log_dir=log_dir)
 
     print("Train and test on CIFAR10:")
     DATA_DIR = "~/data/cifar10_py"
-    log_dir = mkrundir(LOG_DIR)
     trn, tst = load_cifar10(DATA_DIR, flatten=False)
-    train_and_test(trn, tst, epochs=200, run_dir=log_dir)
-
-    sess.close()
+    train_and_test(trn, tst, epochs=200, log_dir=log_dir)
