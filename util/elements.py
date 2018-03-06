@@ -59,7 +59,7 @@ def conv2d_layer(input_tensor, fshape, nchannels, nfilters,
                  strides=[1, 1, 1, 1], act=tf.nn.relu, dropout=None,
                  padding='SAME', name='conv2d_layer'):
 
-    with tf.name_scope(name):
+    with tf.variable_scope(name):
         W = weight_variable([fshape[0], fshape[1], nchannels, nfilters])
         b = bias_variable([nfilters])
         y = act(tf.nn.conv2d(input_tensor, W, strides=strides, padding=padding) + b)
@@ -70,7 +70,7 @@ def conv2d_layer_bn(input_tensor, fshape, nchannels, nfilters, strides=[1, 1, 1,
                     act=tf.nn.relu, dropout=None, batchnorm=True, training=False,
                     padding='SAME', name='conv2d_layer_bn'):
 
-    with tf.name_scope(name):
+    with tf.variable_scope(name):
         W = weight_variable([fshape[0], fshape[1], nchannels, nfilters])
         z = tf.nn.conv2d(input_tensor, W, strides=strides, padding=padding)
         y = act(batch_norm(z, training)) if batchnorm else act(z+bias_variable([nfilters]))
