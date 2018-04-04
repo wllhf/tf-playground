@@ -1,84 +1,105 @@
 import numpy as np
 import tensorflow as tf
-import matplotlib.pyplot as plt
-
-from ..elements import weight_variable, bias_variable
-
-num_epochs = 100
-total_series_length = 50000
-truncated_backprop_length = 15
-state_size = 4
-num_classes = 2
-echo_step = 3
-batch_size = 5
-num_batches = total_series_length//batch_size//truncated_backprop_length
 
 
-class rnn:
-    """ """
+def weight_variable(shape=None, name='weight_variable'):
+    init = tf.variance_scaling_initializer(
+        scale=1.0, mode='fan_out', distribution='uniform', seed=None, dtype=tf.float32)
+    return tf.get_variable(name=name, shape=shape, initializer=init)
 
-    def __init__(self, batch_size, backprop_size, lr=1e-4):
-        """ Instatiate RNN model.
 
-        Parameters:
-        -----------
-          batch_size: int
-          backprop_size: int
-          lr: float
-        """
-        self._input = tf.placeholder(tf.float32, [batch_size, backprop_size])
-        self._target = tf.placeholder(tf.int32, [batch_size, backprop_size])
+def bias_variable(shape=None, name='bias_variable'):
+    initial = tf.constant(0.1, shape=shape) if shape is not None else None
+    return tf.get_variable(name=name, initializer=initial)
 
-        self._Whh = weight_variable()
-        self._Wxh = weight_variable()
-        self._Why = weight_variable()
-        self._h = None
 
-        input_series = tf.unstack(self._input, axis=1)
-        label_series = tf.unstack(self._target, axis=1)
-        logit_series = []
+class rnn_cell:
+    """
+    Almost most basic RNN cell. This implementation is supposed for didactic purposes.
+    For other purposes it is recommended to use the official tensorflow implementation.
 
-        # inference
-        with tf.name_scope('core_network'):
-            for current_batch in input_series:
-                self._h = tf.tanh(tf.matmul(self._Whh, self._h) + tf.matmul(self._Wxh, current_batch))
-                logit_series.append(tf.matmul(self._Why, self._h))
+    Args:
+      state_size: int, The dimension of the state of the RNN cell.
+      target_size: int, The dimension of the output of the RNN cell.
+      act: Nonlinearity to use.  Default: `tanh`.
+      name: String, the name of the layer.
+    """
 
-            self._probabilities = [tf.nn.softmax(l) for l in logit_series]
-            self._predictions = [tf.argmax(p, 1) for p in self._probabilities]
+    def __init__(self, state_size, target_size, act=None, name='rnn_cell'):
+        self._state_size = state_size
+        self._target_size = target_size
+        self._kernel_h = None
+        self._kernel_y = None
+        self._bias_h = None
+        self._bias_y = None
+        self._act = act or tf.tanh
+        self._name = name
+        self._built = False
 
-        # loss
-        with tf.name_scope('loss'):
-            cross_entropies = [
-                tf.nn.sparse_softmax_cross_entropy_with_logits(logits=l, labels=t)
-                for l, t in zip(logit_series, label_series)]
-            self._loss = tf.reduce_mean(cross_entropies)
+    def __call__(self, x, h):
+        if not self._built:
+            self.build(x.get_shape())
 
-        # train
-        with tf.name_scope('train_op'):
-            self._train = tf.train.AdamOptimizer(lr).minimize(self._loss)
+        return self.call(x, h)
 
-        # evaluation
-        with tf.name_scope('accuracy'):
-            correct_prediction = tf.equal(tf.argmax(self._target, 1), tf.argmax(self._probabilities, 1))
-            self._accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
+    def build(self, x_shape):
+        if not self._built:
+            with tf.variable_scope(self._name+'_h'):
+                self._kernel_h = weight_variable(shape=[x_shape[1].value + self._state_size, self._state_size])
+                self._bias_h = bias_variable(shape=[self._state_size])
+            with tf.variable_scope(self._name+'_y'):
+                self._kernel_y = weight_variable(shape=[self._state_size, self._target_size])
+                self._bias_y = bias_variable(shape=[self._target_size])
+            self._built = True
 
-    @property
-    def prediction(self):
-        return (self._predictions, self._probabilities)
+    def call(self, x, h):
+        # h = act(Whh*h + Wxh*x + b)
+        state = self._act(tf.nn.bias_add(tf.matmul(tf.concat([x, h], axis=1), self._kernel_h), self._bias_h))
+        logit = tf.matmul(h, self._kernel_y) + self._bias_y
+        return logit, state
 
-    @property
-    def loss(self):
-        return self._loss
+    def zero_state(self, batch_size, dtype):
+        return tf.zeros(shape=[batch_size, self._state_size], dtype=dtype)
 
-    @property
-    def train(self):
-        return self._train
 
-    @property
-    def evaluation(self):
-        return self._accuracy
+def dynamic_rnn(cell, inputs, state=None):
+    """
+    Args:
+      cell: RNN cell.
+      inputs: Array with n batches of size d (n x d)
+      state: State of RNN cell. Default: None
 
-    @property
-    def io_placeholders(self):
-        return (self._input, self._target)
+    Return:
+      probabilities, logits
+    """
+    batch_size = inputs.shape[1]
+    state = cell.zero_state(batch_size, inputs.dtype) if state is None else state
+    logits_series = []
+    for inp in tf.unstack(inputs, axis=0):
+        inp = tf.reshape(inp, [batch_size, 1])
+        out, state = cell(inp, state)
+        logits_series.append(out)
+    probabilities_series = [tf.nn.softmax(logits) for logits in logits_series]
+    prediction_series = [tf.argmax(probs, axis=1) for probs in probabilities_series]
+    return prediction_series, probabilities_series, logits_series
+
+
+def train_rnn(cell, inputs, targets, state=None, lr=1e-4):
+    """
+    Args:
+      cell: RNN cell.
+      inputs: Array with n batches of size d (n x d)
+      targets: List of expected RNN outputs.
+      state: State of RNN cell. Default: None
+      lr: float, Learning rate.
+
+    Return:
+      op: Training operation.
+    """
+    _, _, logits_series = dynamic_rnn(cell=cell, inputs=inputs, state=state)
+    losses_series = [tf.nn.sparse_softmax_cross_entropy_with_logits(logits=l, labels=t)
+                     for l, t in zip(logits_series, tf.unstack(targets, axis=0))]
+    total_loss = tf.reduce_mean(losses_series)
+    # train_op = tf.train.AdamOptimizer(lr).minimize(total_loss)
+    train_op = tf.train.AdagradOptimizer(0.3).minimize(total_loss)
+    return train_op, total_loss
